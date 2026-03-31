@@ -29,5 +29,14 @@ app.use('/api/hero', heroRoutes);
 app.use('/api/founders', founderRoutes);
 app.use('/api/content', contentRoutes);
 
+// Serve frontend build and client-side routes (e.g., /admin) in production
+const clientBuildPath = path.join(__dirname, '..', 'dist');
+if (fs.existsSync(clientBuildPath)) {
+  app.use(express.static(clientBuildPath));
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(clientBuildPath, 'index.html'));
+  });
+}
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
