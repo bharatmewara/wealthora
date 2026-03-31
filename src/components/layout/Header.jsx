@@ -43,6 +43,12 @@ export default function Header() {
             <Phone size={14} /> +91 98765 43210
           </a>
           <Link
+            to="/login"
+            className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+          >
+            Admin Login
+          </Link>
+          <Link
             to="/contact"
             className="rounded-xl bg-gradient-to-r from-sky-600 to-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:from-sky-700 hover:to-blue-700"
           >
@@ -77,6 +83,13 @@ export default function Header() {
               <a href="tel:+919876543210" className="text-center text-sm font-semibold text-slate-700 hover:text-sky-600">
                 Call: +91 98765 43210
               </a>
+              <Link
+                to="/login"
+                onClick={() => setMobileOpen(false)}
+                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-center text-sm font-semibold text-slate-700"
+              >
+                Admin Login
+              </Link>
               <Link
                 to="/contact"
                 onClick={() => setMobileOpen(false)}
