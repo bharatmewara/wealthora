@@ -154,6 +154,10 @@ export function AdminProvider({ children }) {
         const response = await http.get(`/api/services/${id}`);
         return response.data;
       },
+      getServiceBySlug: async (slug) => {
+        const response = await http.get(`/api/services/by-slug/${slug}`);
+        return response.data;
+      },
       addService: async (payload) => {
         const response = await http.post('/api/services', payload);
         dispatch({ type: ACTIONS.SET_SERVICES, payload: [...state.services, response.data] });

@@ -60,10 +60,10 @@ export default function Services() {
 
                       <div className="mt-5 grid grid-cols-2 gap-3">
                         <Link
-                          to={`/services/${service.id}`}
+                          to={`/services/${service.slug || service.id}`}
                           className="rounded-xl border border-slate-300 px-3 py-2 text-center text-sm font-semibold text-slate-700 hover:bg-slate-100"
                         >
-                          Details
+                          Learn More
                         </Link>
                         <Link
                           to={`/enquiry/${service.id}`}

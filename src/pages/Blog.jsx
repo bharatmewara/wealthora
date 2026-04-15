@@ -50,7 +50,7 @@ export default function Blog() {
                   <span className="rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-700">{blog.category}</span>
                   <span>by {blog.blog_author || 'Admin'}</span>
                 </div>
-                <p className="mt-4 line-clamp-4 text-sm text-slate-600">{blog.blog_content}</p>
+                <p className="mt-4 line-clamp-4 text-sm text-slate-600">{blog.blog_content?.replace(/<[^>]*>/g, '') || ''}</p>
                 <p className="mt-5 text-xs text-slate-500">
                   {blog.created_at ? new Date(blog.created_at).toLocaleDateString() : 'Recently'}
                 </p>

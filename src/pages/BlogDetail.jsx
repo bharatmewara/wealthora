@@ -104,9 +104,7 @@ export default function BlogDetail() {
           </header>
 
           <div className="p-8">
-            <div className="prose prose-slate max-w-none">
-              <p className="whitespace-pre-wrap text-lg leading-relaxed">{blog.blog_content}</p>
-            </div>
+            <div className="prose prose-slate max-w-none" dangerouslySetInnerHTML={{ __html: blog.blog_content }} />
           </div>
         </article>
 
@@ -132,7 +130,7 @@ export default function BlogDetail() {
                 >
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{item.category}</p>
                   <p className="mt-3 line-clamp-2 text-lg font-black text-slate-900">{item.title}</p>
-                  <p className="mt-3 line-clamp-3 text-sm text-slate-600">{item.blog_content}</p>
+                  <p className="mt-3 line-clamp-3 text-sm text-slate-600">{item.blog_content?.replace(/<[^>]*>/g, '') || ''}</p>
                 </Link>
               ))}
             </div>

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Download, Plus, Trash2, LogOut } from 'lucide-react';
+import { Download, Plus, Trash2, LogOut, X } from 'lucide-react';
 import { useAdmin } from '../contexts/AdminContext';
 import { useAuth } from '../contexts/AuthContext';
 import { assetUrl } from '../lib/assetUrl';
+import RichTextEditor from '../components/RichTextEditor';
 
 const tabs = ['services', 'blogs', 'testimonials', 'enquiries', 'hero', 'content', 'founders'];
 
@@ -28,17 +29,21 @@ function SectionHeader({ title, onAdd, addLabel, right }) {
   );
 }
 
-function Modal({ title, children, onClose }) {
+function Modal({ title, children, onClose, wide }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/55 p-4">
-      <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl">
-        <div className="mb-5 flex items-center justify-between">
+      <div className={`flex w-full flex-col ${wide ? 'max-w-3xl' : 'max-w-2xl'} max-h-[90vh] rounded-2xl bg-white shadow-2xl`}>
+        {/* sticky header */}
+        <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-6 py-4">
           <h3 className="text-xl font-bold text-slate-900">{title}</h3>
-          <button type="button" onClick={onClose} className="text-sm font-semibold text-slate-500 hover:text-slate-900">
-            Close
+          <button type="button" onClick={onClose} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+            <X size={18} />
           </button>
         </div>
-        {children}
+        {/* scrollable body */}
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+          {children}
+        </div>
       </div>
     </div>
   );
@@ -78,6 +83,43 @@ export default function Admin() {
     const section = state.contentSections.find((item) => item.section_key === 'footer_contact');
     return section?.data || emptyFooterContact;
   });
+
+  const emptyServiceForm = {
+    title: '', category: '', description: '', price: '', icon: '', featured: false,
+    slug: '', long_description: '', hero_tagline: '',
+    benefits: [], process_steps: [], documents: [], faqs: [], pricing_plans: [],
+    cta_text: '', cta_phone: ''
+  };
+  const [serviceForm, setServiceForm] = useState(emptyServiceForm);
+  const [blogContent, setBlogContent] = useState('');
+
+  useEffect(() => {
+    if (editingType === 'services') {
+      if (editingItem) {
+        setServiceForm({
+          title: editingItem.title || '',
+          category: editingItem.category || '',
+          description: editingItem.description || '',
+          price: editingItem.price || '',
+          icon: editingItem.icon || '',
+          featured: Boolean(editingItem.featured),
+          slug: editingItem.slug || '',
+          long_description: editingItem.long_description || '',
+          hero_tagline: editingItem.hero_tagline || '',
+          benefits: editingItem.benefits || [],
+          process_steps: editingItem.process_steps || [],
+          documents: editingItem.documents || [],
+          faqs: editingItem.faqs || [],
+          pricing_plans: editingItem.pricing_plans || [],
+          cta_text: editingItem.cta_text || '',
+          cta_phone: editingItem.cta_phone || ''
+        });
+      } else {
+        setServiceForm(emptyServiceForm);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingType, editingItem]);
 
   useEffect(() => {
     const section = state.contentSections.find((item) => item.section_key === 'home_about');
@@ -127,6 +169,7 @@ export default function Admin() {
     setFilePreviews({});
     setFileInputKeys({});
     setRemoveExistingImages({});
+    if (type === 'blogs') setBlogContent('');
   };
 
   const openEdit = (type, item) => {
@@ -135,6 +178,7 @@ export default function Admin() {
     setFilePreviews({});
     setFileInputKeys({});
     setRemoveExistingImages({});
+    if (type === 'blogs') setBlogContent(item?.blog_content || '');
   };
 
   const closeModal = () => {
@@ -146,6 +190,7 @@ export default function Admin() {
     setFilePreviews({});
     setFileInputKeys({});
     setRemoveExistingImages({});
+    setBlogContent('');
   };
 
   const setSelectedFile = (name, file) => {
@@ -191,20 +236,14 @@ export default function Admin() {
     if (removeExistingImages.banner_image) removalPayload.remove_banner_image = true;
     
     if (editingType === 'services') {
-      const servicePayload = {
-        title: payload.title,
-        category: payload.category,
-        description: payload.description,
-        price: payload.price,
-        icon: payload.icon,
-        featured: payload.featured === 'on'
-      };
+      const servicePayload = { ...serviceForm };
       if (editingItem) await api.updateService(editingItem.id, servicePayload);
       else await api.addService(servicePayload);
     } else if (editingType === 'blogs') {
       const blogPayload = {
         ...payload,
         ...removalPayload,
+        blog_content: blogContent,
         published: Boolean(formData.get('published'))
       };
       if (editingItem) await api.updateBlog(editingItem.id, blogPayload);
@@ -473,63 +512,155 @@ export default function Admin() {
       </div>
 
       {editingType && (
-        <Modal title={`${editingItem ? 'Edit' : 'New'} ${editingType.slice(0, -1) || editingType}`} onClose={closeModal}>
-          <form onSubmit={handleSave} className="grid gap-4">
+        <Modal title={`${editingItem ? 'Edit' : 'New'} ${editingType.slice(0, -1) || editingType}`} onClose={closeModal} wide={editingType === 'services' || editingType === 'blogs'}>
+          <form onSubmit={handleSave} className="flex flex-col gap-4">
             {editingType === 'services' && (
-              <>
-                <input name="title" required defaultValue={editingItem?.title || ''} placeholder="Title" className="rounded-xl border border-slate-300 px-4 py-3" />
-                <input name="category" required defaultValue={editingItem?.category || ''} placeholder="Category" className="rounded-xl border border-slate-300 px-4 py-3" />
-                <input name="price" defaultValue={editingItem?.price || ''} placeholder="Price" className="rounded-xl border border-slate-300 px-4 py-3" />
-                <input name="icon" defaultValue={editingItem?.icon || ''} placeholder="Icon" className="rounded-xl border border-slate-300 px-4 py-3" />
-                <textarea name="description" required defaultValue={editingItem?.description || ''} rows="4" placeholder="Description" className="rounded-xl border border-slate-300 px-4 py-3" />
-                <label className="inline-flex items-center gap-2 text-sm text-slate-700"><input name="featured" type="checkbox" defaultChecked={Boolean(editingItem?.featured)} /> Featured</label>
-              </>
+              <div className="grid gap-4">
+                {/* Basic fields */}
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <input value={serviceForm.title} onChange={(e) => setServiceForm((p) => ({ ...p, title: e.target.value }))} placeholder="Title *" required className="rounded-xl border border-slate-300 px-4 py-3" />
+                  <input value={serviceForm.category} onChange={(e) => setServiceForm((p) => ({ ...p, category: e.target.value }))} placeholder="Category *" required className="rounded-xl border border-slate-300 px-4 py-3" />
+                  <input value={serviceForm.price} onChange={(e) => setServiceForm((p) => ({ ...p, price: e.target.value }))} placeholder="Price" className="rounded-xl border border-slate-300 px-4 py-3" />
+                  <input value={serviceForm.icon} onChange={(e) => setServiceForm((p) => ({ ...p, icon: e.target.value }))} placeholder="Icon (emoji)" className="rounded-xl border border-slate-300 px-4 py-3" />
+                  <input value={serviceForm.slug} onChange={(e) => setServiceForm((p) => ({ ...p, slug: e.target.value }))} placeholder="Slug (auto-generated if blank)" className="rounded-xl border border-slate-300 px-4 py-3" />
+                  <input value={serviceForm.hero_tagline} onChange={(e) => setServiceForm((p) => ({ ...p, hero_tagline: e.target.value }))} placeholder="Hero tagline" className="rounded-xl border border-slate-300 px-4 py-3" />
+                </div>
+                <textarea value={serviceForm.description} onChange={(e) => setServiceForm((p) => ({ ...p, description: e.target.value }))} rows="3" placeholder="Short description *" required className="rounded-xl border border-slate-300 px-4 py-3" />
+                <textarea value={serviceForm.long_description} onChange={(e) => setServiceForm((p) => ({ ...p, long_description: e.target.value }))} rows="4" placeholder="Long description" className="rounded-xl border border-slate-300 px-4 py-3" />
+                <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+                  <input type="checkbox" checked={serviceForm.featured} onChange={(e) => setServiceForm((p) => ({ ...p, featured: e.target.checked }))} /> Featured
+                </label>
+
+                {/* Benefits */}
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-sm font-bold text-slate-800">Benefits</p>
+                    <button type="button" onClick={() => setServiceForm((p) => ({ ...p, benefits: [...p.benefits, ''] }))} className="text-xs font-semibold text-sky-700">+ Add</button>
+                  </div>
+                  {serviceForm.benefits.map((b, i) => (
+                    <div key={i} className="mb-2 flex gap-2">
+                      <input value={typeof b === 'string' ? b : b.text || ''} onChange={(e) => setServiceForm((p) => { const arr = [...p.benefits]; arr[i] = e.target.value; return { ...p, benefits: arr }; })} placeholder={`Benefit ${i + 1}`} className="flex-1 rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                      <button type="button" onClick={() => setServiceForm((p) => ({ ...p, benefits: p.benefits.filter((_, j) => j !== i) }))} className="text-rose-500"><X size={14} /></button>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Process Steps */}
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-sm font-bold text-slate-800">Process Steps</p>
+                    <button type="button" onClick={() => setServiceForm((p) => ({ ...p, process_steps: [...p.process_steps, { title: '', description: '' }] }))} className="text-xs font-semibold text-sky-700">+ Add</button>
+                  </div>
+                  {serviceForm.process_steps.map((step, i) => (
+                    <div key={i} className="mb-3 rounded-xl border border-slate-200 bg-white p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-slate-500">Step {i + 1}</span>
+                        <button type="button" onClick={() => setServiceForm((p) => ({ ...p, process_steps: p.process_steps.filter((_, j) => j !== i) }))} className="text-rose-500"><X size={14} /></button>
+                      </div>
+                      <input value={step.title} onChange={(e) => setServiceForm((p) => { const arr = [...p.process_steps]; arr[i] = { ...arr[i], title: e.target.value }; return { ...p, process_steps: arr }; })} placeholder="Step title" className="mb-2 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                      <textarea value={step.description} onChange={(e) => setServiceForm((p) => { const arr = [...p.process_steps]; arr[i] = { ...arr[i], description: e.target.value }; return { ...p, process_steps: arr }; })} rows="2" placeholder="Step description" className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                    </div>
+                  ))}
+                </div>
+
+                {/* Documents */}
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-sm font-bold text-slate-800">Required Documents</p>
+                    <button type="button" onClick={() => setServiceForm((p) => ({ ...p, documents: [...p.documents, ''] }))} className="text-xs font-semibold text-sky-700">+ Add</button>
+                  </div>
+                  {serviceForm.documents.map((doc, i) => (
+                    <div key={i} className="mb-2 flex gap-2">
+                      <input value={typeof doc === 'string' ? doc : doc.name || ''} onChange={(e) => setServiceForm((p) => { const arr = [...p.documents]; arr[i] = e.target.value; return { ...p, documents: arr }; })} placeholder={`Document ${i + 1}`} className="flex-1 rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                      <button type="button" onClick={() => setServiceForm((p) => ({ ...p, documents: p.documents.filter((_, j) => j !== i) }))} className="text-rose-500"><X size={14} /></button>
+                    </div>
+                  ))}
+                </div>
+
+                {/* FAQs */}
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-sm font-bold text-slate-800">FAQs</p>
+                    <button type="button" onClick={() => setServiceForm((p) => ({ ...p, faqs: [...p.faqs, { question: '', answer: '' }] }))} className="text-xs font-semibold text-sky-700">+ Add</button>
+                  </div>
+                  {serviceForm.faqs.map((faq, i) => (
+                    <div key={i} className="mb-3 rounded-xl border border-slate-200 bg-white p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-slate-500">FAQ {i + 1}</span>
+                        <button type="button" onClick={() => setServiceForm((p) => ({ ...p, faqs: p.faqs.filter((_, j) => j !== i) }))} className="text-rose-500"><X size={14} /></button>
+                      </div>
+                      <input value={faq.question} onChange={(e) => setServiceForm((p) => { const arr = [...p.faqs]; arr[i] = { ...arr[i], question: e.target.value }; return { ...p, faqs: arr }; })} placeholder="Question" className="mb-2 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                      <textarea value={faq.answer} onChange={(e) => setServiceForm((p) => { const arr = [...p.faqs]; arr[i] = { ...arr[i], answer: e.target.value }; return { ...p, faqs: arr }; })} rows="2" placeholder="Answer" className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                    </div>
+                  ))}
+                </div>
+
+                {/* Pricing Plans */}
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-sm font-bold text-slate-800">Pricing Plans</p>
+                    <button type="button" onClick={() => setServiceForm((p) => ({ ...p, pricing_plans: [...p.pricing_plans, { name: '', price: '', features: '' }] }))} className="text-xs font-semibold text-sky-700">+ Add</button>
+                  </div>
+                  {serviceForm.pricing_plans.map((plan, i) => (
+                    <div key={i} className="mb-3 rounded-xl border border-slate-200 bg-white p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-slate-500">Plan {i + 1}</span>
+                        <button type="button" onClick={() => setServiceForm((p) => ({ ...p, pricing_plans: p.pricing_plans.filter((_, j) => j !== i) }))} className="text-rose-500"><X size={14} /></button>
+                      </div>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <input value={plan.name} onChange={(e) => setServiceForm((p) => { const arr = [...p.pricing_plans]; arr[i] = { ...arr[i], name: e.target.value }; return { ...p, pricing_plans: arr }; })} placeholder="Plan name" className="rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                        <input value={plan.price} onChange={(e) => setServiceForm((p) => { const arr = [...p.pricing_plans]; arr[i] = { ...arr[i], price: e.target.value }; return { ...p, pricing_plans: arr }; })} placeholder="Price" className="rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                      </div>
+                      <textarea value={Array.isArray(plan.features) ? plan.features.join('\n') : plan.features || ''} onChange={(e) => setServiceForm((p) => { const arr = [...p.pricing_plans]; arr[i] = { ...arr[i], features: e.target.value.split('\n') }; return { ...p, pricing_plans: arr }; })} rows="3" placeholder="Features (one per line)" className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                    </div>
+                  ))}
+                </div>
+
+                {/* CTA */}
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <input value={serviceForm.cta_text} onChange={(e) => setServiceForm((p) => ({ ...p, cta_text: e.target.value }))} placeholder="CTA text" className="rounded-xl border border-slate-300 px-4 py-3" />
+                  <input value={serviceForm.cta_phone} onChange={(e) => setServiceForm((p) => ({ ...p, cta_phone: e.target.value }))} placeholder="CTA phone" className="rounded-xl border border-slate-300 px-4 py-3" />
+                </div>
+              </div>
             )}
 
             {editingType === 'blogs' && (
-              <>
-                <input name="title" required defaultValue={editingItem?.title || ''} placeholder="Title" className="rounded-xl border border-slate-300 px-4 py-3" />
-                <input name="blog_author" required defaultValue={editingItem?.blog_author || ''} placeholder="Author" className="rounded-xl border border-slate-300 px-4 py-3" />
-                <input name="category" required defaultValue={editingItem?.category || ''} placeholder="Category" className="rounded-xl border border-slate-300 px-4 py-3" />
-                <input name="blog_image_color" defaultValue={editingItem?.blog_image_color || ''} placeholder="Image color (#hex)" className="rounded-xl border border-slate-300 px-4 py-3" />
-                <textarea name="blog_content" required defaultValue={editingItem?.blog_content || ''} rows="5" placeholder="Content" className="rounded-xl border border-slate-300 px-4 py-3" />
-                <label className="inline-flex items-center gap-2 text-sm text-slate-700"><input name="published" type="checkbox" defaultChecked={editingItem ? editingItem.published !== false : true} /> Published</label>
+              <div className="grid gap-4">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <input name="title" required defaultValue={editingItem?.title || ''} placeholder="Title" className="rounded-xl border border-slate-300 px-4 py-3" />
+                  <input name="blog_author" required defaultValue={editingItem?.blog_author || ''} placeholder="Author" className="rounded-xl border border-slate-300 px-4 py-3" />
+                  <input name="category" required defaultValue={editingItem?.category || ''} placeholder="Category" className="rounded-xl border border-slate-300 px-4 py-3" />
+                  <input name="blog_image_color" defaultValue={editingItem?.blog_image_color || ''} placeholder="Fallback color (#hex)" className="rounded-xl border border-slate-300 px-4 py-3" />
+                </div>
+
+                <div>
+                  <p className="mb-2 text-sm font-semibold text-slate-800">Content</p>
+                  <RichTextEditor value={blogContent} onChange={setBlogContent} />
+                </div>
+
+                <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+                  <input name="published" type="checkbox" defaultChecked={editingItem ? editingItem.published !== false : true} /> Published
+                </label>
+
                 <div className="grid gap-2">
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-semibold text-slate-800">Blog image</p>
                     {filePreviews.image ? (
-                      <button type="button" onClick={() => clearSelectedFile('image')} className="text-xs font-semibold text-rose-700 hover:text-rose-800">
-                        Remove selected
-                      </button>
+                      <button type="button" onClick={() => clearSelectedFile('image')} className="text-xs font-semibold text-rose-700 hover:text-rose-800">Remove selected</button>
                     ) : editingItem?.blog_image && !removeExistingImages.image ? (
-                      <button type="button" onClick={() => removeExistingImage('image')} className="text-xs font-semibold text-rose-700 hover:text-rose-800">
-                        Remove current
-                      </button>
+                      <button type="button" onClick={() => removeExistingImage('image')} className="text-xs font-semibold text-rose-700 hover:text-rose-800">Remove current</button>
                     ) : removeExistingImages.image ? (
-                      <button type="button" onClick={() => setRemoveExistingImages((prev) => ({ ...prev, image: false }))} className="text-xs font-semibold text-slate-600 hover:text-slate-800">
-                        Undo
-                      </button>
+                      <button type="button" onClick={() => setRemoveExistingImages((prev) => ({ ...prev, image: false }))} className="text-xs font-semibold text-slate-600 hover:text-slate-800">Undo</button>
                     ) : null}
                   </div>
                   <div className="flex flex-wrap items-center gap-3">
                     {(filePreviews.image || (editingItem?.blog_image && !removeExistingImages.image)) && (
-                      <img
-                        src={assetUrl(filePreviews.image || editingItem.blog_image)}
-                        alt="Preview"
-                        className="h-16 w-20 rounded-xl object-cover border border-slate-200"
-                      />
+                      <img src={assetUrl(filePreviews.image || editingItem.blog_image)} alt="Preview" className="h-16 w-20 rounded-xl object-cover border border-slate-200" />
                     )}
-                    <input
-                      key={fileInputKeys.image || 0}
-                      type="file"
-                      name="image"
-                      accept="image/*"
-                      onChange={(e) => setSelectedFile('image', e.target.files?.[0])}
-                      className="rounded-xl border border-slate-300 px-4 py-3"
-                    />
+                    <input key={fileInputKeys.image || 0} type="file" name="image" accept="image/*" onChange={(e) => setSelectedFile('image', e.target.files?.[0])} className="rounded-xl border border-slate-300 px-4 py-3" />
                   </div>
                 </div>
-              </>
+              </div>
             )}
 
             {editingType === 'testimonials' && (
@@ -670,13 +801,13 @@ export default function Admin() {
               </>
             )}
 
-            <button type="submit" className="mt-2 rounded-xl bg-sky-700 px-5 py-3 text-sm font-semibold text-white hover:bg-sky-800">Save</button>
+            <button type="submit" className="mt-2 w-full rounded-xl bg-sky-700 px-5 py-3 text-sm font-semibold text-white hover:bg-sky-800">Save</button>
           </form>
         </Modal>
       )}
 
       {viewingBlog && (
-        <Modal title="Blog preview" onClose={() => setViewingBlog(null)}>
+        <Modal title="Blog preview" onClose={() => setViewingBlog(null)} wide>
           <div className="grid gap-5">
             {viewingBlog.blog_image ? (
               <img src={assetUrl(viewingBlog.blog_image)} alt="" className="h-52 w-full rounded-2xl object-cover" />
@@ -696,9 +827,7 @@ export default function Admin() {
               <h3 className="mt-2 text-2xl font-black text-slate-900">{viewingBlog.title}</h3>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 text-sm leading-relaxed text-slate-700 whitespace-pre-wrap">
-              {viewingBlog.blog_content}
-            </div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 text-sm leading-relaxed text-slate-700 prose prose-slate max-w-none" dangerouslySetInnerHTML={{ __html: viewingBlog.blog_content }} />
 
             <div className="flex flex-wrap gap-2">
               <a
