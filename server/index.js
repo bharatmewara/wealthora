@@ -1,7 +1,9 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const migrate = require('./migrate');
 
 const app = express();
 app.use(cors());
@@ -39,4 +41,12 @@ if (fs.existsSync(clientBuildPath)) {
 }
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+migrate()
+  .then(() => {
+    app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+  })
+  .catch((err) => {
+    console.error('Migration failed, server not started:', err.message);
+    process.exit(1);
+  });

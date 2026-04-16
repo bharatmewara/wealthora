@@ -93,6 +93,31 @@ export default function Admin() {
   const [serviceForm, setServiceForm] = useState(emptyServiceForm);
   const [blogContent, setBlogContent] = useState('');
 
+  // Safely coerce JSONB fields to arrays
+  const toArray = (val) => {
+    if (Array.isArray(val)) return val;
+    if (val === null || val === undefined) return [];
+    if (typeof val === 'string') {
+      try {
+        const parsed = JSON.parse(val);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  };
+
+  // Safely coerce any JSONB value (null / parsed array / JSON string) to an array
+  function toArr(val) {
+    if (!val) return [];
+    if (Array.isArray(val)) return val;
+    if (typeof val === 'string') {
+      try { const p = JSON.parse(val); return Array.isArray(p) ? p : []; } catch { return []; }
+    }
+    return [];
+  }
+
   useEffect(() => {
     if (editingType === 'services') {
       if (editingItem) {
@@ -106,11 +131,11 @@ export default function Admin() {
           slug: editingItem.slug || '',
           long_description: editingItem.long_description || '',
           hero_tagline: editingItem.hero_tagline || '',
-          benefits: editingItem.benefits || [],
-          process_steps: editingItem.process_steps || [],
-          documents: editingItem.documents || [],
-          faqs: editingItem.faqs || [],
-          pricing_plans: editingItem.pricing_plans || [],
+          benefits: toArr(editingItem.benefits),
+          process_steps: toArr(editingItem.process_steps),
+          documents: toArr(editingItem.documents),
+          faqs: toArr(editingItem.faqs),
+          pricing_plans: toArr(editingItem.pricing_plans),
           cta_text: editingItem.cta_text || '',
           cta_phone: editingItem.cta_phone || ''
         });
