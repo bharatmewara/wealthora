@@ -1,0 +1,5 @@
+BEGIN;
+
+ALTER TABLE content_sections ADD COLUMN IF NOT EXISTS data JSONB DEFAULT '{}'::jsonb;
+
+COMMIT;

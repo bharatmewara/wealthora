@@ -183,7 +183,8 @@ VALUES (
   'From registration to recurring filings, Wealthora helps founders run compliant and scalable businesses with expert guidance.',
   'Learn more',
   '/about'
-)
+),
+('footer_contact', 'Contact Information', NULL, NULL, NULL, NULL)
 ON CONFLICT (section_key) DO NOTHING;
 
 COMMIT;

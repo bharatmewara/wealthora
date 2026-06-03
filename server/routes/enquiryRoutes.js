@@ -1,11 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db.js');
+const { verifyToken } = require('../middleware/auth');
 
-router.get('/', async (req, res) => {
+// ── PUBLIC: GET all enquiries not exposed publicly ─────────────────────────
+// ── PROTECTED: GET all (admin) ───────────────────────────────────────────────
+router.get('/', verifyToken, async (req, res) => {
   try {
     const result = await db.query('SELECT * FROM enquiries ORDER BY created_at DESC');
-    // Parse date/time for frontend
     const enquiriesWithDateTime = result.rows.map(e => {
       const date = new Date(e.created_at);
       return {
@@ -21,13 +23,28 @@ router.get('/', async (req, res) => {
   }
 });
 
+// ── PUBLIC: POST — submit enquiry (public users) ─────────────────────────────
 router.post('/', async (req, res) => {
   try {
-    const { name, email, phone, service, message, status = 'new' } = req.body;
+    const { name, email, phone, service, message, city, business_type, status = 'new' } = req.body;
+
+    // Basic validation
+    if (!name || !name.trim()) return res.status(400).json({ error: 'Name is required' });
+    if (!phone || !phone.trim()) return res.status(400).json({ error: 'Phone is required' });
+
     const result = await db.query(
-      `INSERT INTO enquiries (name, email, phone, service, message, status, created_at) 
-       VALUES ($1, $2, $3, $4, $5, $6, NOW()) RETURNING *`,
-      [name || '', email || '', phone || '', service || '', message || '', status]
+      `INSERT INTO enquiries (name, email, phone, service, message, city, business_type, status, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW()) RETURNING *`,
+      [
+        name.trim(),
+        (email || '').trim(),
+        phone.trim(),
+        (service || '').trim(),
+        (message || '').trim(),
+        (city || '').trim(),
+        (business_type || '').trim(),
+        status
+      ]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -36,23 +53,25 @@ router.post('/', async (req, res) => {
   }
 });
 
-router.put('/:id', async (req, res) => {
+// ── PROTECTED: PUT — update enquiry (admin) ──────────────────────────────────
+router.put('/:id', verifyToken, async (req, res) => {
   try {
-    const { status, name, email, phone, service, message } = req.body;
+    const { status, name, email, phone, service, message, notes, assigned_to } = req.body;
+
     const result = await db.query(
-      `UPDATE enquiries SET 
-       status = $1,
+      `UPDATE enquiries SET
+       status = COALESCE($1, status),
        name = COALESCE($2, name),
        email = COALESCE($3, email),
        phone = COALESCE($4, phone),
        service = COALESCE($5, service),
-       message = COALESCE($6, message)
-       WHERE id = $7 RETURNING *`,
-      [status, name, email, phone, service, message, req.params.id]
+       message = COALESCE($6, message),
+       notes = COALESCE($7, notes),
+       assigned_to = COALESCE($8, assigned_to)
+       WHERE id = $9 RETURNING *`,
+      [status, name, email, phone, service, message, notes, assigned_to, req.params.id]
     );
-    if (result.rowCount === 0) {
-      return res.status(404).json({ error: 'Enquiry not found' });
-    }
+    if (result.rowCount === 0) return res.status(404).json({ error: 'Enquiry not found' });
     res.json(result.rows[0]);
   } catch (err) {
     console.error(err);
@@ -60,7 +79,8 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-router.delete('/:id', async (req, res) => {
+// ── PROTECTED: DELETE ────────────────────────────────────────────────────────
+router.delete('/:id', verifyToken, async (req, res) => {
   try {
     await db.query('DELETE FROM enquiries WHERE id = $1', [req.params.id]);
     res.json({ success: true });

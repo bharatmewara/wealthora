@@ -1,8 +1,9 @@
 const express = require('express');
 const router = express.Router();
-
 const db = require('../db.js');
+const { verifyToken } = require('../middleware/auth');
 
+// ── PUBLIC: GET all (for public pages) ──────────────────────────────────────
 router.get('/', async (req, res) => {
   try {
     const result = await db.query('SELECT * FROM content_sections ORDER BY section_key ASC');
@@ -13,17 +14,14 @@ router.get('/', async (req, res) => {
   }
 });
 
+// ── PUBLIC: GET by section key ───────────────────────────────────────────────
 router.get('/:sectionKey', async (req, res) => {
   try {
     const result = await db.query(
       'SELECT * FROM content_sections WHERE section_key = $1 LIMIT 1',
       [req.params.sectionKey]
     );
-
-    if (result.rowCount === 0) {
-      return res.status(404).json({ error: 'Section not found' });
-    }
-
+    if (result.rowCount === 0) return res.status(404).json({ error: 'Section not found' });
     res.json(result.rows[0]);
   } catch (err) {
     console.error(err);
@@ -31,53 +29,31 @@ router.get('/:sectionKey', async (req, res) => {
   }
 });
 
-router.put('/:sectionKey', async (req, res) => {
+// ── PROTECTED: PUT upsert section (admin) ────────────────────────────────────
+router.put('/:sectionKey', verifyToken, async (req, res) => {
   try {
-    const { title, subtitle, body, cta_text, cta_url, data } = req.body;
+    const { section_key: _, ...updates } = req.body;
 
-    try {
-      const result = await db.query(
-        `INSERT INTO content_sections (section_key, title, subtitle, body, cta_text, cta_url, data)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
-         ON CONFLICT (section_key)
-         DO UPDATE SET
-           title = EXCLUDED.title,
-           subtitle = EXCLUDED.subtitle,
-           body = EXCLUDED.body,
-           cta_text = EXCLUDED.cta_text,
-           cta_url = EXCLUDED.cta_url,
-           data = COALESCE(EXCLUDED.data, content_sections.data),
-           updated_at = NOW()
-         RETURNING *`,
-        [req.params.sectionKey, title, subtitle, body, cta_text, cta_url, data ?? null]
-      );
+    if (!req.params.sectionKey) return res.status(400).json({ error: 'sectionKey required' });
 
-      return res.json(result.rows[0]);
-    } catch (err) {
-      if (err?.code !== '42703' && !/column\\s+\"data\"/i.test(err?.message || '')) {
-        throw err;
-      }
+    const columns = ['section_key', ...Object.keys(updates)];
+    const placeholders = columns.map((_, i) => `$${i + 1}`);
+    const values = [req.params.sectionKey, ...Object.values(updates)];
+    const setClause = Object.keys(updates).map(field => `${field} = EXCLUDED.${field}`).join(', ');
 
-      const result = await db.query(
-        `INSERT INTO content_sections (section_key, title, subtitle, body, cta_text, cta_url)
-         VALUES ($1, $2, $3, $4, $5, $6)
-         ON CONFLICT (section_key)
-         DO UPDATE SET
-           title = EXCLUDED.title,
-           subtitle = EXCLUDED.subtitle,
-           body = EXCLUDED.body,
-           cta_text = EXCLUDED.cta_text,
-           cta_url = EXCLUDED.cta_url,
-           updated_at = NOW()
-         RETURNING *`,
-        [req.params.sectionKey, title, subtitle, body, cta_text, cta_url]
-      );
+    const query = `
+      INSERT INTO content_sections (${columns.join(', ')})
+      VALUES (${placeholders.join(', ')})
+      ON CONFLICT (section_key)
+      DO UPDATE SET ${setClause}, updated_at = NOW()
+      RETURNING *
+    `;
 
-      return res.json(result.rows[0]);
-    }
+    const result = await db.query(query, values);
+    res.json(result.rows[0]);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to upsert section' });
+    console.error('Content upsert error for section:', req.params.sectionKey, err.message);
+    res.status(500).json({ error: 'Failed to upsert section', details: err.message });
   }
 });
 

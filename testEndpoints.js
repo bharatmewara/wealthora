@@ -2,7 +2,7 @@
 
 async function testEndpoint(path, name) {
   return new Promise((resolve) => {
-    const req = http.get({ hostname: 'localhost', port: 5002, path }, (res) => {
+    const req = http.get({ hostname: 'localhost', port: 5000, path }, (res) => {
       let body = '';
       res.on('data', chunk => body += chunk);
       res.on('end', () => {

@@ -12,6 +12,30 @@
   .animate-fade-in-up {
     animation: fadeInUp 1s ease-out;
   }
+
+  /* Reusable form input style */
+  .input-style {
+    @apply w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20;
+  }
+
+  /* Reusable form label style */
+  .label-style {
+    @apply mb-1.5 block text-xs font-semibold text-slate-600;
+  }
+
+  /* Prose overrides for blog content */
+  .prose img {
+    @apply rounded-2xl shadow-md;
+  }
+  .prose h2 {
+    @apply mt-8 text-2xl font-black;
+  }
+  .prose h3 {
+    @apply mt-6 text-xl font-bold;
+  }
+  .prose p {
+    @apply leading-relaxed text-slate-600;
+  }
 }
 
 @keyframes fadeInUp {

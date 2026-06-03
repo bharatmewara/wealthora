@@ -1,12 +1,23 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Download, Plus, Trash2, LogOut, X } from 'lucide-react';
+import { Download, Plus, Trash2, LogOut, X, LayoutDashboard, Briefcase, FileText, MessageSquare, HelpCircle, Image, Settings, Users, Star, Menu } from 'lucide-react';
 import { useAdmin } from '../contexts/AdminContext';
 import { useAuth } from '../contexts/AuthContext';
 import { assetUrl } from '../lib/assetUrl';
+import { normalizeSectionData } from '../lib/contentSections';
 import RichTextEditor from '../components/RichTextEditor';
+import AboutContentForm from './AboutContentForm.jsx';
 
-const tabs = ['services', 'blogs', 'testimonials', 'enquiries', 'hero', 'content', 'founders'];
+const tabs = [
+  { id: 'services', label: 'Services', icon: Briefcase },
+  { id: 'blogs', label: 'Blogs', icon: FileText },
+  { id: 'testimonials', label: 'Testimonials', icon: Star },
+  { id: 'enquiries', label: 'Enquiries', icon: MessageSquare },
+  { id: 'faqs', label: 'FAQs', icon: HelpCircle },
+  { id: 'hero', label: 'Hero Slides', icon: Image },
+  { id: 'content', label: 'Content & Settings', icon: Settings },
+  { id: 'founders', label: 'Founders', icon: Users }
+];
 
 function SectionHeader({ title, onAdd, addLabel, right }) {
   return (
@@ -79,10 +90,12 @@ export default function Admin() {
     const section = state.contentSections.find((item) => item.section_key === 'home_about');
     return section || emptyAbout;
   });
-  const [footerContactForm, setFooterContactForm] = useState(() => {
-    const section = state.contentSections.find((item) => item.section_key === 'footer_contact');
-    return section?.data || emptyFooterContact;
-  });
+  const [footerContactForm, setFooterContactForm] = useState(emptyFooterContact);
+  const [websiteSettingsForm, setWebsiteSettingsForm] = useState({ phone: '', whatsapp: '', email: '', address: '' });
+  const [faqForm, setFaqForm] = useState({ question: '', answer: '', category: 'General', sort_order: 1, active: true });
+  const [editingFaqId, setEditingFaqId] = useState(null);
+
+  const [aboutPageSection, setAboutPageSection] = useState(null);
 
   const emptyServiceForm = {
     title: '', category: '', description: '', price: '', icon: '', featured: false,
@@ -161,31 +174,49 @@ export default function Admin() {
 
   useEffect(() => {
     const section = state.contentSections.find((item) => item.section_key === 'footer_contact');
-    if (section?.data) {
-      setFooterContactForm({
-        phone: section.data.phone || '',
-        email: section.data.email || '',
-        address: section.data.address || '',
-        map_embed_url: section.data.map_embed_url || ''
-      });
-    }
+    const data = normalizeSectionData(section?.data);
+    setFooterContactForm({
+      phone: data.phone || '',
+      email: data.email || '',
+      address: data.address || '',
+      map_embed_url: data.map_embed_url || ''
+    });
   }, [state.contentSections]);
 
-  const summary = useMemo(
-    () => [
+  useEffect(() => {
+    const section = state.contentSections.find(item => item.section_key === 'website_settings');
+    const data = (section?.data) || {};
+    setWebsiteSettingsForm({
+      phone: data.phone || '',
+      whatsapp: data.whatsapp || '',
+      email: data.email || '',
+      address: data.address || ''
+    });
+  }, [state.contentSections]);
+
+  useEffect(() => {
+    const section = state.contentSections.find((item) => item.section_key === 'about_page');
+    setAboutPageSection(section || null);
+  }, [state.contentSections]);
+
+  const summary = useMemo(() => {
+    const today = new Date().toDateString();
+    const todayEnquiries = state.enquiries.filter(e => new Date(e.created_at).toDateString() === today).length;
+    const newEnquiries = state.enquiries.filter(e => e.status === 'new').length;
+    const convertedEnquiries = state.enquiries.filter(e => e.status === 'converted').length;
+    return [
       { label: 'Services', value: state.services.length },
-      { label: 'Blogs', value: state.blogs.length },
-      { label: 'Published Blogs', value: state.blogs.filter((b) => b.published !== false).length },
-      { label: 'Testimonials', value: state.testimonials.length },
-      { label: 'Enquiries', value: state.enquiries.length },
-      { label: 'Founders', value: state.founders.length }
-    ],
-    [state]
-  );
+      { label: 'Total Enquiries', value: state.enquiries.length },
+      { label: "Today's Leads", value: todayEnquiries, highlight: todayEnquiries > 0 },
+      { label: 'New Unread', value: newEnquiries, highlight: newEnquiries > 0 },
+      { label: 'Converted', value: convertedEnquiries },
+      { label: 'Published Blogs', value: state.blogs.filter(b => b.published !== false).length }
+    ];
+  }, [state]);
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate('/admin/login');
   };
 
   const openCreate = (type) => {
@@ -301,55 +332,107 @@ export default function Admin() {
       title: 'Footer contact',
       data: footerContactForm
     });
+    await api.refreshAll();
+  };
+
+  const handleSaveWebsiteSettings = async (event) => {
+    event.preventDefault();
+    await api.updateContentSection('website_settings', {
+      title: 'Website Settings',
+      data: websiteSettingsForm
+    });
+    await api.refreshAll();
+  };
+
+  const handleSaveFaq = async (event) => {
+    event.preventDefault();
+    if (editingFaqId) {
+      await api.updateFaq(editingFaqId, faqForm);
+    } else {
+      await api.addFaq(faqForm);
+    }
+    setFaqForm({ question: '', answer: '', category: 'General', sort_order: 1, active: true });
+    setEditingFaqId(null);
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 p-6">
-      <div className="mx-auto max-w-7xl">
-        <header className="mb-8 rounded-2xl bg-white p-6 shadow-sm">
-          <div className="mb-4 flex items-start justify-between">
-            <div>
-              <h1 className="text-3xl font-black text-slate-900">Wealthora Admin</h1>
-              <p className="mt-1 text-sm text-slate-600">Fully dynamic content and route management dashboard.</p>
-            </div>
+    <>
+      <div className="flex h-screen bg-slate-50 font-sans overflow-hidden">
+      {/* Sidebar Navigation */}
+      <aside className="flex w-72 flex-col bg-slate-900 text-slate-300">
+        <div className="flex h-16 shrink-0 items-center px-6 bg-slate-950">
+          <h1 className="text-xl font-black text-white">Wealthora Admin</h1>
+        </div>
+        <div className="flex-1 overflow-y-auto py-6">
+          <nav className="flex flex-col gap-1 px-4">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  type="button"
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-all ${
+                    activeTab === tab.id
+                      ? 'bg-sky-600 text-white shadow-md'
+                      : 'hover:bg-slate-800 hover:text-white'
+                  }`}
+                >
+                  <Icon size={18} className={activeTab === tab.id ? 'text-white' : 'text-slate-400'} />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+        <div className="border-t border-slate-800 p-4">
+          <div className="mb-4 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+            Account
+          </div>
+          <div className="flex items-center justify-between px-2">
             <div className="flex items-center gap-3">
-              <span className="text-sm text-slate-600">{authState.user?.name || 'Admin'}</span>
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="inline-flex items-center gap-2 rounded-lg bg-rose-100 px-3 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-200"
-              >
-                <LogOut size={16} />
-                Logout
-              </button>
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-800 text-sm font-bold text-white">
+                {(authState.user?.name || 'A').charAt(0).toUpperCase()}
+              </div>
+              <span className="text-sm font-bold text-white">{authState.user?.name || 'Admin'}</span>
+            </div>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="rounded-lg p-2 text-slate-400 hover:bg-rose-500 hover:text-white transition-colors"
+              title="Logout"
+            >
+              <LogOut size={18} />
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main Content Area */}
+      <main className="flex flex-1 flex-col overflow-hidden">
+        {/* Top Header / Dashboard Stats */}
+        <header className="shrink-0 border-b border-slate-200 bg-white p-6 shadow-sm z-10">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold text-slate-900">
+              {tabs.find(t => t.id === activeTab)?.label}
+            </h2>
+            <div className="text-sm text-slate-500">
+              {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
             </div>
           </div>
-          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
+          <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-6">
             {summary.map((item) => (
-              <div key={item.label} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <div key={item.label} className={`rounded-xl border p-4 transition-all ${item.highlight ? 'border-sky-300 bg-sky-50 shadow-sm' : 'border-slate-200 bg-slate-50'}`}>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{item.label}</p>
-                <p className="mt-1 text-2xl font-black text-slate-900">{item.value}</p>
+                <p className={`mt-1 text-2xl font-black ${item.highlight ? 'text-sky-700' : 'text-slate-900'}`}>{item.value}</p>
               </div>
             ))}
           </div>
         </header>
 
-        <div className="mb-6 flex flex-wrap gap-2">
-          {tabs.map((tab) => (
-            <button
-              type="button"
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`rounded-xl px-4 py-2 text-sm font-semibold ${
-                activeTab === tab ? 'bg-slate-900 text-white' : 'bg-white text-slate-700 hover:bg-slate-200'
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
-
-        <section className="rounded-2xl bg-white p-6 shadow-sm">
+        {/* Scrollable Tab Content */}
+        <div className="flex-1 overflow-y-auto p-8">
+          <section className="mx-auto max-w-6xl rounded-2xl bg-white p-8 shadow-sm border border-slate-100">
           {activeTab === 'services' && (
             <>
               <SectionHeader title="Services" onAdd={() => openCreate('services')} addLabel="Add service" />
@@ -443,16 +526,106 @@ export default function Admin() {
                     <p className="mt-1 text-sm text-slate-500">{item.email || 'No email'} - {item.phone}</p>
                     <p className="mt-2 text-sm text-slate-600">{item.service}</p>
                     <p className="mt-2 line-clamp-2 text-sm text-slate-600">{item.message}</p>
-                    <div className="mt-4 flex items-center gap-2">
-                      <select value={item.status || 'new'} onChange={(event) => api.updateEnquiry(item.id, { status: event.target.value })} className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm">
-                        <option value="new">new</option>
-                        <option value="contacted">contacted</option>
-                        <option value="closed">closed</option>
+                    {(item.city || item.business_type) && (
+                      <p className="mt-1 text-xs text-slate-400">{[item.city, item.business_type].filter(Boolean).join(' · ')}</p>
+                    )}
+                    {item.notes && (
+                      <div className="mt-2 rounded-lg bg-amber-50 border border-amber-100 px-3 py-2 text-xs text-amber-800">
+                        <span className="font-semibold">Notes:</span> {item.notes}
+                      </div>
+                    )}
+                    <div className="mt-4 flex items-center gap-2 flex-wrap">
+                      <select value={item.status || 'new'} onChange={(event) => api.updateEnquiry(item.id, { status: event.target.value })} className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs">
+                        <option value="new">🔵 New</option>
+                        <option value="contacted">📞 Contacted</option>
+                        <option value="follow-up">🔄 Follow-up</option>
+                        <option value="converted">✅ Converted</option>
+                        <option value="lost">❌ Lost</option>
+                        <option value="closed">🔒 Closed</option>
                       </select>
                       <button type="button" onClick={() => api.deleteEnquiry(item.id)} className="rounded-lg border border-rose-200 px-2 py-1.5 text-rose-700"><Trash2 size={14} /></button>
                     </div>
                   </article>
                 ))}
+              </div>
+            </>
+          )}
+
+          {activeTab === 'faqs' && (
+            <>
+              <SectionHeader title="FAQs" />
+              <div className="grid gap-8 lg:grid-cols-2">
+                {/* FAQ form */}
+                <form onSubmit={handleSaveFaq} className="grid gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                  <h3 className="text-sm font-black text-slate-900">{editingFaqId ? 'Edit FAQ' : 'Add New FAQ'}</h3>
+                  <input
+                    value={faqForm.question}
+                    onChange={e => setFaqForm(p => ({ ...p, question: e.target.value }))}
+                    placeholder="Question *"
+                    required
+                    className="rounded-xl border border-slate-300 px-4 py-3 text-sm"
+                  />
+                  <textarea
+                    value={faqForm.answer}
+                    onChange={e => setFaqForm(p => ({ ...p, answer: e.target.value }))}
+                    rows={4}
+                    placeholder="Answer *"
+                    required
+                    className="rounded-xl border border-slate-300 px-4 py-3 text-sm"
+                  />
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <input
+                      value={faqForm.category}
+                      onChange={e => setFaqForm(p => ({ ...p, category: e.target.value }))}
+                      placeholder="Category (e.g. GST, Trademark)"
+                      className="rounded-xl border border-slate-300 px-4 py-3 text-sm"
+                    />
+                    <input
+                      type="number"
+                      value={faqForm.sort_order}
+                      onChange={e => setFaqForm(p => ({ ...p, sort_order: parseInt(e.target.value) || 1 }))}
+                      placeholder="Sort order"
+                      className="rounded-xl border border-slate-300 px-4 py-3 text-sm"
+                    />
+                  </div>
+                  <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+                    <input type="checkbox" checked={faqForm.active} onChange={e => setFaqForm(p => ({ ...p, active: e.target.checked }))} />
+                    Active (visible on public FAQ page)
+                  </label>
+                  <div className="flex gap-3">
+                    <button type="submit" className="rounded-xl bg-sky-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-sky-800">
+                      {editingFaqId ? 'Update FAQ' : 'Add FAQ'}
+                    </button>
+                    {editingFaqId && (
+                      <button type="button" onClick={() => { setEditingFaqId(null); setFaqForm({ question: '', answer: '', category: 'General', sort_order: 1, active: true }); }} className="rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+                </form>
+
+                {/* FAQ list */}
+                <div className="space-y-3">
+                  {(state.faqs || []).map(faq => (
+                    <div key={faq.id} className={`rounded-2xl border p-4 ${faq.active ? 'border-slate-200 bg-white' : 'border-slate-100 bg-slate-50 opacity-60'}`}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1">
+                          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">{faq.category}</p>
+                          <p className="mt-0.5 text-sm font-bold text-slate-900">{faq.question}</p>
+                          <p className="mt-1 line-clamp-2 text-xs text-slate-600">{faq.answer}</p>
+                        </div>
+                        <div className="flex shrink-0 gap-1">
+                          <button type="button" onClick={() => { setEditingFaqId(faq.id); setFaqForm({ question: faq.question, answer: faq.answer, category: faq.category || 'General', sort_order: faq.sort_order || 1, active: faq.active !== false }); }} className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50">Edit</button>
+                          <button type="button" onClick={() => api.updateFaq(faq.id, { active: !faq.active })} className={`rounded-lg border px-2 py-1 text-xs font-semibold ${faq.active ? 'border-amber-200 text-amber-700' : 'border-emerald-200 text-emerald-700'}`}>{faq.active ? 'Hide' : 'Show'}</button>
+                          <button type="button" onClick={() => api.deleteFaq(faq.id)} className="rounded-lg border border-rose-200 px-2 py-1 text-rose-700"><Trash2 size={12} /></button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {(state.faqs || []).length === 0 && (
+                    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-sm text-slate-400">No FAQs yet. Add one on the left.</div>
+                  )}
+                </div>
               </div>
             </>
           )}
@@ -478,28 +651,50 @@ export default function Admin() {
 
           {activeTab === 'content' && (
             <>
-              <SectionHeader title="Homepage Content" />
+              <SectionHeader title="CMS Content" />
               <div className="grid gap-6 lg:grid-cols-2">
+                {/* Website Settings — WhatsApp, Phone, Email */}
+                <form onSubmit={handleSaveWebsiteSettings} className="grid gap-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
+                  <h3 className="text-sm font-black text-slate-900">🌐 Website Settings (WhatsApp, Phone)</h3>
+                  <p className="text-xs text-slate-500">These values are used globally — floating WhatsApp button, footer, contact page.</p>
+                  <input value={websiteSettingsForm.phone} onChange={e => setWebsiteSettingsForm(p => ({ ...p, phone: e.target.value }))} placeholder="Phone (e.g. +91 98765 43210)" className="rounded-xl border border-slate-300 px-4 py-3 text-sm bg-white" />
+                  <input value={websiteSettingsForm.whatsapp} onChange={e => setWebsiteSettingsForm(p => ({ ...p, whatsapp: e.target.value }))} placeholder="WhatsApp number (digits only, e.g. 919876543210)" className="rounded-xl border border-slate-300 px-4 py-3 text-sm bg-white" />
+                  <input value={websiteSettingsForm.email} onChange={e => setWebsiteSettingsForm(p => ({ ...p, email: e.target.value }))} placeholder="Email" className="rounded-xl border border-slate-300 px-4 py-3 text-sm bg-white" />
+                  <textarea value={websiteSettingsForm.address} onChange={e => setWebsiteSettingsForm(p => ({ ...p, address: e.target.value }))} rows={2} placeholder="Office address" className="rounded-xl border border-slate-300 px-4 py-3 text-sm bg-white" />
+                  <button type="submit" className="w-fit rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800">Save Settings</button>
+                </form>
+
                 <form onSubmit={handleSaveAbout} className="grid gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-5">
                   <h3 className="text-sm font-black text-slate-900">Home: About section</h3>
-                  <input value={aboutForm.title} onChange={(e) => setAboutForm((prev) => ({ ...prev, title: e.target.value }))} placeholder="About title" className="rounded-xl border border-slate-300 px-4 py-3" required />
-                  <input value={aboutForm.subtitle} onChange={(e) => setAboutForm((prev) => ({ ...prev, subtitle: e.target.value }))} placeholder="About subtitle" className="rounded-xl border border-slate-300 px-4 py-3" required />
-                  <textarea value={aboutForm.body} onChange={(e) => setAboutForm((prev) => ({ ...prev, body: e.target.value }))} rows="5" placeholder="About body" className="rounded-xl border border-slate-300 px-4 py-3" required />
+                  <input value={aboutForm.title} onChange={(e) => setAboutForm((prev) => ({ ...prev, title: e.target.value }))} placeholder="About title" className="rounded-xl border border-slate-300 px-4 py-3 text-sm" required />
+                  <input value={aboutForm.subtitle} onChange={(e) => setAboutForm((prev) => ({ ...prev, subtitle: e.target.value }))} placeholder="About subtitle" className="rounded-xl border border-slate-300 px-4 py-3 text-sm" required />
+                  <textarea value={aboutForm.body} onChange={(e) => setAboutForm((prev) => ({ ...prev, body: e.target.value }))} rows="5" placeholder="About body" className="rounded-xl border border-slate-300 px-4 py-3 text-sm" required />
                   <div className="grid gap-4 md:grid-cols-2">
-                    <input value={aboutForm.cta_text} onChange={(e) => setAboutForm((prev) => ({ ...prev, cta_text: e.target.value }))} placeholder="CTA text" className="rounded-xl border border-slate-300 px-4 py-3" />
-                    <input value={aboutForm.cta_url} onChange={(e) => setAboutForm((prev) => ({ ...prev, cta_url: e.target.value }))} placeholder="CTA URL" className="rounded-xl border border-slate-300 px-4 py-3" />
+                    <input value={aboutForm.cta_text} onChange={(e) => setAboutForm((prev) => ({ ...prev, cta_text: e.target.value }))} placeholder="CTA text" className="rounded-xl border border-slate-300 px-4 py-3 text-sm" />
+                    <input value={aboutForm.cta_url} onChange={(e) => setAboutForm((prev) => ({ ...prev, cta_url: e.target.value }))} placeholder="CTA URL" className="rounded-xl border border-slate-300 px-4 py-3 text-sm" />
                   </div>
                   <button type="submit" className="w-fit rounded-xl bg-sky-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-sky-800">Save About</button>
                 </form>
 
                 <form onSubmit={handleSaveFooterContact} className="grid gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-5">
                   <h3 className="text-sm font-black text-slate-900">Footer: Contact + Map</h3>
-                  <input value={footerContactForm.phone} onChange={(e) => setFooterContactForm((prev) => ({ ...prev, phone: e.target.value }))} placeholder="Phone" className="rounded-xl border border-slate-300 px-4 py-3" />
-                  <input value={footerContactForm.email} onChange={(e) => setFooterContactForm((prev) => ({ ...prev, email: e.target.value }))} placeholder="Email" className="rounded-xl border border-slate-300 px-4 py-3" />
-                  <textarea value={footerContactForm.address} onChange={(e) => setFooterContactForm((prev) => ({ ...prev, address: e.target.value }))} rows="3" placeholder="Address" className="rounded-xl border border-slate-300 px-4 py-3" />
-                  <textarea value={footerContactForm.map_embed_url} onChange={(e) => setFooterContactForm((prev) => ({ ...prev, map_embed_url: e.target.value }))} rows="3" placeholder="Google Maps embed URL (iframe src)" className="rounded-xl border border-slate-300 px-4 py-3" />
+                  <input value={footerContactForm.phone || ''} onChange={(e) => setFooterContactForm((prev) => ({ ...prev, phone: e.target.value }))} placeholder="Phone" className="rounded-xl border border-slate-300 px-4 py-3 text-sm" />
+                  <input value={footerContactForm.email || ''} onChange={(e) => setFooterContactForm((prev) => ({ ...prev, email: e.target.value }))} placeholder="Email" className="rounded-xl border border-slate-300 px-4 py-3 text-sm" />
+                  <textarea value={footerContactForm.address || ''} onChange={(e) => setFooterContactForm((prev) => ({ ...prev, address: e.target.value }))} rows="3" placeholder="Address" className="rounded-xl border border-slate-300 px-4 py-3 text-sm" />
+                  <textarea value={footerContactForm.map_embed_url || ''} onChange={(e) => setFooterContactForm((prev) => ({ ...prev, map_embed_url: e.target.value }))} rows="3" placeholder="Google Maps embed URL (iframe src)" className="rounded-xl border border-slate-300 px-4 py-3 text-sm" />
                   <button type="submit" className="w-fit rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">Save Footer</button>
                 </form>
+
+                <div className="col-span-full">
+                  <h3 className="text-sm font-black text-slate-900 mb-6">About Page Content</h3>
+                  <AboutContentForm
+                    section={aboutPageSection}
+                    onSave={async (data) => {
+                      await api.updateContentSection('about_page', data);
+                      await api.refreshAll();
+                    }}
+                  />
+                </div>
               </div>
             </>
           )}
@@ -534,7 +729,9 @@ export default function Admin() {
             </>
           )}
         </section>
-      </div>
+        </div>
+      </main>
+    </div>
 
       {editingType && (
         <Modal title={`${editingItem ? 'Edit' : 'New'} ${editingType.slice(0, -1) || editingType}`} onClose={closeModal} wide={editingType === 'services' || editingType === 'blogs'}>
@@ -772,9 +969,20 @@ export default function Admin() {
 
             {editingType === 'hero' && (
               <>
-                <input name="heading" required defaultValue={editingItem?.heading || ''} placeholder="Heading" className="rounded-xl border border-slate-300 px-4 py-3" />
-                <textarea name="subheading" required defaultValue={editingItem?.subheading || ''} rows="4" placeholder="Subheading" className="rounded-xl border border-slate-300 px-4 py-3" />
-                <input name="slide_order" type="number" required defaultValue={editingItem?.slide_order || 1} className="rounded-xl border border-slate-300 px-4 py-3" />
+                <input name="heading" required defaultValue={editingItem?.heading || ''} placeholder="Heading *" className="rounded-xl border border-slate-300 px-4 py-3 text-sm" />
+                <textarea name="subheading" required defaultValue={editingItem?.subheading || ''} rows="4" placeholder="Subheading *" className="rounded-xl border border-slate-300 px-4 py-3 text-sm" />
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <input name="slide_order" type="number" required defaultValue={editingItem?.slide_order || 1} placeholder="Order" className="rounded-xl border border-slate-300 px-4 py-3 text-sm" />
+                  <input name="badge_text" defaultValue={editingItem?.badge_text || ''} placeholder="Badge text (e.g. #1 in Jaipur)" className="rounded-xl border border-slate-300 px-4 py-3 text-sm" />
+                  <label className="flex items-center gap-2 text-sm text-slate-700 rounded-xl border border-slate-300 px-4 py-3">
+                    <input type="checkbox" name="active" defaultChecked={editingItem?.active !== false} value="true" />
+                    Active (visible)
+                  </label>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <input name="cta_text" defaultValue={editingItem?.cta_text || ''} placeholder="CTA Button Text (e.g. Get Free Consultation)" className="rounded-xl border border-slate-300 px-4 py-3 text-sm" />
+                  <input name="cta_url" defaultValue={editingItem?.cta_url || '/contact'} placeholder="CTA URL (e.g. /contact)" className="rounded-xl border border-slate-300 px-4 py-3 text-sm" />
+                </div>
                 <div className="grid gap-2">
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-semibold text-slate-800">Hero image</p>
@@ -812,6 +1020,7 @@ export default function Admin() {
                 </div>
               </>
             )}
+
 
             {editingType === 'founders' && (
               <>
@@ -870,6 +1079,6 @@ export default function Admin() {
           </div>
         </Modal>
       )}
-    </div>
+    </>
   );
 }

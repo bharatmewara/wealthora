@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db.js');
 const { multipleUploads } = require('../middleware/upload.js');
+const { verifyToken } = require('../middleware/auth');
 
 router.get('/', async (req, res) => {
   try {
@@ -19,7 +20,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.post('/', (req, res) => {
+router.post('/', verifyToken, (req, res) => {
   multipleUploads(req, res, async (err) => {
     if (err) {
       return res.status(400).json({ error: err.message });
@@ -46,7 +47,7 @@ router.post('/', (req, res) => {
   });
 });
 
-router.put('/:id', (req, res) => {
+router.put('/:id', verifyToken, (req, res) => {
   multipleUploads(req, res, async (err) => {
     if (err) {
       return res.status(400).json({ error: err.message });
@@ -92,7 +93,7 @@ router.put('/:id', (req, res) => {
   });
 });
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', verifyToken, async (req, res) => {
   try {
     await db.query('DELETE FROM testimonials WHERE id = $1', [req.params.id]);
     res.json({ success: true });

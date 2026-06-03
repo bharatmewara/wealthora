@@ -15,6 +15,10 @@ import Contact from './pages/Contact';
 import Login from './pages/Login';
 import Admin from './pages/Admin';
 import NotFound from './pages/NotFound';
+import FAQ from './pages/FAQ';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsConditions from './pages/TermsConditions';
+import RefundPolicy from './pages/RefundPolicy';
 
 export default function App() {
   return (
@@ -22,6 +26,7 @@ export default function App() {
       <AuthProvider>
         <AdminProvider>
           <Routes>
+            {/* Public routes with layout */}
             <Route element={<AppLayout />}>
               <Route path="/" element={<Home />} />
               <Route path="/services" element={<Services />} />
@@ -32,11 +37,20 @@ export default function App() {
               <Route path="/testimonials" element={<Testimonials />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/about" element={<About />} />
+              <Route path="/faq" element={<FAQ />} />
+              <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+              <Route path="/terms" element={<TermsConditions />} />
+              <Route path="/refund-policy" element={<RefundPolicy />} />
               <Route path="/home" element={<Navigate to="/" replace />} />
+              {/* Legacy login redirect */}
+              <Route path="/login" element={<Navigate to="/admin/login" replace />} />
               <Route path="*" element={<NotFound />} />
             </Route>
 
-            <Route path="/login" element={<Login />} />
+            {/* Admin auth (no layout) */}
+            <Route path="/admin/login" element={<Login />} />
+
+            {/* Protected admin panel (no layout) */}
             <Route
               path="/admin"
               element={

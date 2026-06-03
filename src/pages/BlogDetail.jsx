@@ -1,142 +1,121 @@
-import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft, FileText, User } from 'lucide-react';
+import { useState } from 'react';
+import { useParams, Link } from 'react-router-dom';
 import { useAdmin } from '../contexts/AdminContext';
-import { assetUrl } from '../lib/assetUrl';
+import { ChevronLeft, Calendar, User, Tag, Clock, MessageCircle } from 'lucide-react';
 
 export default function BlogDetail() {
   const { id } = useParams();
-  const navigate = useNavigate();
-  const { http, state } = useAdmin();
-  const [blog, setBlog] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const { state } = useAdmin();
 
-  useEffect(() => {
-    const run = async () => {
-      try {
-        setLoading(true);
-        setError('');
-        const response = await http.get(`/api/blogs/${id}`);
-        setBlog(response.data);
-      } catch {
-        setError('Blog not found.');
-      } finally {
-        setLoading(false);
-      }
-    };
+  const blog = (state.blogs || []).find(b => String(b.id) === String(id));
+  const related = (state.blogs || []).filter(b => b.id !== blog?.id && b.category === blog?.category && b.published !== false).slice(0, 3);
 
-    if (id) {
-      run();
-    }
-  }, [http, id]);
-
-  if (loading) {
-    return <div className="py-24 text-center text-slate-600">Loading blog details...</div>;
+  if (state.loading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-orange-200 border-t-orange-600" />
+      </div>
+    );
   }
 
-  if (error || !blog) {
+  if (!blog) {
     return (
       <div className="mx-auto max-w-3xl px-6 py-20 text-center">
-        <FileText className="mx-auto h-14 w-14 text-slate-400" />
-        <h1 className="mt-4 text-3xl font-bold text-slate-900">Blog not found</h1>
-        <p className="mt-3 text-slate-600">{error || 'The requested blog does not exist.'}</p>
-        <Link
-          to="/blog"
-          className="mt-8 inline-flex items-center gap-2 rounded-xl bg-orange-600 px-5 py-3 text-sm font-semibold text-white hover:bg-orange-700"
-        >
-          <ChevronLeft size={16} />
-          Back to blog
+        <h1 className="text-3xl font-bold text-slate-900">Article not found</h1>
+        <p className="mt-3 text-slate-600">This article may have been removed or is not yet published.</p>
+        <Link to="/blog" className="mt-8 inline-flex items-center gap-2 rounded-xl bg-orange-600 px-5 py-3 text-sm font-bold text-white hover:bg-orange-700">
+          <ChevronLeft size={16} /> Back to Blog
         </Link>
       </div>
     );
   }
 
-  const relatedBlogs = Array.isArray(state.blogs)
-    ? state.blogs
-        .filter((item) => item.published !== false)
-        .filter((item) => String(item.id) !== String(id))
-        .slice(0, 3)
-    : [];
+  const readTime = blog.blog_content ? Math.max(1, Math.ceil(blog.blog_content.replace(/<[^>]*>/g, '').split(' ').length / 200)) : 3;
+  const date = blog.created_at ? new Date(blog.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
 
   return (
-    <div className="py-12 sm:py-20">
-      <div className="mx-auto max-w-4xl px-6">
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          className="mb-8 inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-slate-900"
+    <>
+      <title>{blog.title} — Wealthora Blog</title>
+
+      {/* Cover */}
+      {blog.blog_image ? (
+        <div className="h-72 w-full overflow-hidden">
+          <img src={blog.blog_image} alt={blog.title} className="h-full w-full object-cover" />
+        </div>
+      ) : (
+        <div
+          className="flex h-64 items-end px-6 pb-10"
+          style={{ background: `linear-gradient(135deg, ${blog.blog_image_color || '#0ea5e9'}, #7c3aed)` }}
         >
-          <ChevronLeft size={16} />
-          Back to blog
-        </button>
-
-        <article className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-          <header className="border-b border-slate-200">
-            {blog.blog_image ? (
-              <img
-                src={assetUrl(blog.blog_image)}
-                alt={blog.title}
-                className="h-64 w-full object-cover sm:h-80"
-              />
-            ) : (
-              <div
-                className="flex h-64 w-full items-end rounded-none bg-gradient-to-br from-sky-600 to-slate-900 p-8 text-white sm:h-80"
-                style={{ backgroundColor: blog.blog_image_color || '#0ea5e9' }}
-              >
-                <h1 className="text-3xl font-black leading-tight sm:text-4xl">{blog.title}</h1>
-              </div>
-            )}
-
-            <div className="p-8">
-              {!blog.blog_image && (
-                <h1 className="text-3xl font-black leading-tight text-slate-900 sm:text-4xl">{blog.title}</h1>
-              )}
-              <div className="mt-5 flex flex-wrap items-center gap-3 text-sm text-slate-500">
-                <span className="flex items-center gap-2 font-medium text-slate-700">
-                  <User size={16} />
-                  {blog.blog_author || 'Admin'}
-                </span>
-                <span className="rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-700">{blog.category}</span>
-                <span>{blog.created_at ? new Date(blog.created_at).toLocaleDateString() : 'Recently'}</span>
-              </div>
-            </div>
-          </header>
-
-          <div className="p-8">
-            <div className="prose prose-slate max-w-none" dangerouslySetInnerHTML={{ __html: blog.blog_content }} />
+          <div className="mx-auto max-w-4xl w-full">
+            <Link to="/blog" className="inline-flex items-center gap-1 text-xs font-semibold text-white/70 hover:text-white">
+              <ChevronLeft size={14} /> Blog
+            </Link>
           </div>
-        </article>
+        </div>
+      )}
 
-        <div className="mt-12 text-center">
-          <Link
-            to="/blog"
-            className="inline-flex items-center gap-2 rounded-xl bg-orange-600 px-6 py-3 text-sm font-semibold text-white hover:bg-orange-700"
-          >
-            <ChevronLeft size={16} />
-            View all blog posts
+      <div className="mx-auto max-w-4xl px-6 py-10">
+        {/* Breadcrumb */}
+        {blog.blog_image && (
+          <Link to="/blog" className="inline-flex items-center gap-1 text-xs font-semibold text-slate-400 hover:text-slate-700">
+            <ChevronLeft size={14} /> Back to Blog
+          </Link>
+        )}
+
+        {/* Meta */}
+        <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-slate-400">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-50 px-3 py-1 text-orange-700 font-semibold">
+            <Tag size={11} /> {blog.category}
+          </span>
+          <span className="inline-flex items-center gap-1"><User size={11} /> {blog.blog_author}</span>
+          {date && <span className="inline-flex items-center gap-1"><Calendar size={11} /> {date}</span>}
+          <span className="inline-flex items-center gap-1"><Clock size={11} /> {readTime} min read</span>
+        </div>
+
+        {/* Title */}
+        <h1 className="mt-4 text-3xl font-black leading-tight text-slate-900 sm:text-4xl">{blog.title}</h1>
+
+        {/* Content */}
+        <div
+          className="prose prose-slate mt-8 max-w-none prose-headings:font-black prose-headings:text-slate-900 prose-a:text-sky-700 prose-img:rounded-2xl prose-strong:text-slate-800"
+          dangerouslySetInnerHTML={{ __html: blog.blog_content || '' }}
+        />
+
+        {/* Enquiry CTA */}
+        <div className="mt-14 rounded-3xl bg-gradient-to-r from-sky-700 to-indigo-800 p-8 text-center text-white">
+          <h2 className="text-2xl font-black">Need Help with Compliance?</h2>
+          <p className="mt-2 text-sky-200">Our CA experts will guide you through every step, for free.</p>
+          <Link to="/contact" className="mt-6 inline-flex items-center gap-2 rounded-xl bg-orange-500 px-6 py-3 text-sm font-bold text-white hover:bg-orange-600">
+            <MessageCircle size={16} /> Talk to an Expert
           </Link>
         </div>
 
-        {relatedBlogs.length > 0 && (
-          <section className="mt-12">
-            <h2 className="text-xl font-black text-slate-900">More to read</h2>
-            <div className="mt-6 grid gap-5 md:grid-cols-3">
-              {relatedBlogs.map((item) => (
+        {/* Related blogs */}
+        {related.length > 0 && (
+          <div className="mt-14">
+            <h2 className="mb-5 text-lg font-black text-slate-900">Related Articles</h2>
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {related.map(r => (
                 <Link
-                  key={item.id}
-                  to={`/blog/${item.id}`}
-                  className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+                  key={r.id}
+                  to={`/blog/${r.id}`}
+                  className="group flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white transition hover:-translate-y-1 hover:shadow-md"
                 >
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{item.category}</p>
-                  <p className="mt-3 line-clamp-2 text-lg font-black text-slate-900">{item.title}</p>
-                  <p className="mt-3 line-clamp-3 text-sm text-slate-600">{item.blog_content?.replace(/<[^>]*>/g, '') || ''}</p>
+                  <div
+                    className="h-28"
+                    style={{ background: `linear-gradient(135deg, ${r.blog_image_color || '#0ea5e9'}, #7c3aed)` }}
+                  />
+                  <div className="flex-1 p-4">
+                    <p className="text-xs text-slate-400">{r.category}</p>
+                    <h3 className="mt-1 text-sm font-bold text-slate-900 line-clamp-2 group-hover:text-sky-700">{r.title}</h3>
+                  </div>
                 </Link>
               ))}
             </div>
-          </section>
+          </div>
         )}
       </div>
-    </div>
+    </>
   );
 }

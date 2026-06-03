@@ -104,14 +104,6 @@ export default function HeroSlider() {
           />
         ))}
       </div>
-
-      <button
-        type="button"
-        onClick={() => setIsPlaying((value) => !value)}
-        className="absolute right-6 top-6 z-10 rounded-xl bg-white/90 p-3 text-slate-800 shadow-lg"
-      >
-        {isPlaying ? <Pause size={18} /> : <Play size={18} />}
-      </button>
     </section>
   );
 }

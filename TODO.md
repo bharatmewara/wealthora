@@ -1,13 +1,8 @@
-# Wealthora API Error Fix: Services 500
+# Fix About Page Text Flash/Disappear
 
-✅ Schema migrated (JSONB columns added)  
-✅ Verified services table (18 records)  
-✅ Updated serviceRoutes.js parsePayload safe JSONB  
-✅ Restarted server  
+## Steps:
+- [x] 1. Add loading skeleton and robust data merge in src/pages/About.jsx
 
-**Next:**  
-- [ ] Test Admin /services edit (PUT no 500)  
-- [ ] Test create new service  
-- [ ] attempt_completion  
-
-
+- [ ] 2. Test About page renders defaults during loading, merges DB data correctly
+- [ ] 3. Verify no flash/disappear behavior
+- [ ] 4. Complete
