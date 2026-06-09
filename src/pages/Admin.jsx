@@ -4,6 +4,8 @@ import { Download, Plus, Trash2, LogOut, X, LayoutDashboard, Briefcase, FileText
 import { useAdmin } from '../contexts/AdminContext';
 import { useAuth } from '../contexts/AuthContext';
 import { assetUrl } from '../lib/assetUrl';
+import ColorPickerInput from '../admin/components/ColorPickerInput';
+import MediaUploadInput from '../admin/components/MediaUploadInput';
 import { normalizeSectionData } from '../lib/contentSections';
 import RichTextEditor from '../components/RichTextEditor';
 import AboutContentForm from './AboutContentForm.jsx';
@@ -79,7 +81,17 @@ export default function Admin() {
   const { state, api, exportEnquiriesCSV } = useAdmin();
   const { logout, state: authState } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('services');
+  
+  const locationPath = window.location.pathname.split('/').pop();
+  const [activeTab, setActiveTab] = useState(tabs.find(t => t.id === locationPath) ? locationPath : 'services');
+
+  useEffect(() => {
+    const path = window.location.pathname.split('/').pop();
+    if (tabs.find(t => t.id === path)) {
+      setActiveTab(path);
+    }
+  }, [window.location.pathname]);
+
   const [editingType, setEditingType] = useState('');
   const [editingItem, setEditingItem] = useState(null);
   const [viewingBlog, setViewingBlog] = useState(null);
@@ -357,82 +369,7 @@ export default function Admin() {
 
   return (
     <>
-      <div className="flex h-screen bg-slate-50 font-sans overflow-hidden">
-      {/* Sidebar Navigation */}
-      <aside className="flex w-72 flex-col bg-slate-900 text-slate-300">
-        <div className="flex h-16 shrink-0 items-center px-6 bg-slate-950">
-          <h1 className="text-xl font-black text-white">Wealthora Admin</h1>
-        </div>
-        <div className="flex-1 overflow-y-auto py-6">
-          <nav className="flex flex-col gap-1 px-4">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              return (
-                <button
-                  type="button"
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-all ${
-                    activeTab === tab.id
-                      ? 'bg-sky-600 text-white shadow-md'
-                      : 'hover:bg-slate-800 hover:text-white'
-                  }`}
-                >
-                  <Icon size={18} className={activeTab === tab.id ? 'text-white' : 'text-slate-400'} />
-                  {tab.label}
-                </button>
-              );
-            })}
-          </nav>
-        </div>
-        <div className="border-t border-slate-800 p-4">
-          <div className="mb-4 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-            Account
-          </div>
-          <div className="flex items-center justify-between px-2">
-            <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-800 text-sm font-bold text-white">
-                {(authState.user?.name || 'A').charAt(0).toUpperCase()}
-              </div>
-              <span className="text-sm font-bold text-white">{authState.user?.name || 'Admin'}</span>
-            </div>
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="rounded-lg p-2 text-slate-400 hover:bg-rose-500 hover:text-white transition-colors"
-              title="Logout"
-            >
-              <LogOut size={18} />
-            </button>
-          </div>
-        </div>
-      </aside>
-
-      {/* Main Content Area */}
-      <main className="flex flex-1 flex-col overflow-hidden">
-        {/* Top Header / Dashboard Stats */}
-        <header className="shrink-0 border-b border-slate-200 bg-white p-6 shadow-sm z-10">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-bold text-slate-900">
-              {tabs.find(t => t.id === activeTab)?.label}
-            </h2>
-            <div className="text-sm text-slate-500">
-              {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-            </div>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-6">
-            {summary.map((item) => (
-              <div key={item.label} className={`rounded-xl border p-4 transition-all ${item.highlight ? 'border-sky-300 bg-sky-50 shadow-sm' : 'border-slate-200 bg-slate-50'}`}>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{item.label}</p>
-                <p className={`mt-1 text-2xl font-black ${item.highlight ? 'text-sky-700' : 'text-slate-900'}`}>{item.value}</p>
-              </div>
-            ))}
-          </div>
-        </header>
-
-        {/* Scrollable Tab Content */}
-        <div className="flex-1 overflow-y-auto p-8">
-          <section className="mx-auto max-w-6xl rounded-2xl bg-white p-8 shadow-sm border border-slate-100">
+      <section className="mx-auto max-w-6xl rounded-2xl bg-white p-8 shadow-sm border border-slate-100">
           {activeTab === 'services' && (
             <>
               <SectionHeader title="Services" onAdd={() => openCreate('services')} addLabel="Add service" />
@@ -729,9 +666,6 @@ export default function Admin() {
             </>
           )}
         </section>
-        </div>
-      </main>
-    </div>
 
       {editingType && (
         <Modal title={`${editingItem ? 'Edit' : 'New'} ${editingType.slice(0, -1) || editingType}`} onClose={closeModal} wide={editingType === 'services' || editingType === 'blogs'}>
@@ -852,7 +786,10 @@ export default function Admin() {
                   <input name="title" required defaultValue={editingItem?.title || ''} placeholder="Title" className="rounded-xl border border-slate-300 px-4 py-3" />
                   <input name="blog_author" required defaultValue={editingItem?.blog_author || ''} placeholder="Author" className="rounded-xl border border-slate-300 px-4 py-3" />
                   <input name="category" required defaultValue={editingItem?.category || ''} placeholder="Category" className="rounded-xl border border-slate-300 px-4 py-3" />
-                  <input name="blog_image_color" defaultValue={editingItem?.blog_image_color || ''} placeholder="Fallback color (#hex)" className="rounded-xl border border-slate-300 px-4 py-3" />
+                  <div className="flex flex-col gap-1.5">
+                    <p className="text-sm font-semibold text-slate-800">Blog image color</p>
+                    <ColorPickerInput name="blog_image_color" defaultValue={editingItem?.blog_image_color || ''} />
+                  </div>
                 </div>
 
                 <div>
@@ -865,22 +802,8 @@ export default function Admin() {
                 </label>
 
                 <div className="grid gap-2">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold text-slate-800">Blog image</p>
-                    {filePreviews.image ? (
-                      <button type="button" onClick={() => clearSelectedFile('image')} className="text-xs font-semibold text-rose-700 hover:text-rose-800">Remove selected</button>
-                    ) : editingItem?.blog_image && !removeExistingImages.image ? (
-                      <button type="button" onClick={() => removeExistingImage('image')} className="text-xs font-semibold text-rose-700 hover:text-rose-800">Remove current</button>
-                    ) : removeExistingImages.image ? (
-                      <button type="button" onClick={() => setRemoveExistingImages((prev) => ({ ...prev, image: false }))} className="text-xs font-semibold text-slate-600 hover:text-slate-800">Undo</button>
-                    ) : null}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    {(filePreviews.image || (editingItem?.blog_image && !removeExistingImages.image)) && (
-                      <img src={assetUrl(filePreviews.image || editingItem.blog_image)} alt="Preview" className="h-16 w-20 rounded-xl object-cover border border-slate-200" />
-                    )}
-                    <input key={fileInputKeys.image || 0} type="file" name="image" accept="image/*" onChange={(e) => setSelectedFile('image', e.target.files?.[0])} className="rounded-xl border border-slate-300 px-4 py-3" />
-                  </div>
+                  <p className="text-sm font-semibold text-slate-800">Blog image</p>
+                  <MediaUploadInput name="image" defaultValue={editingItem?.blog_image} />
                 </div>
               </div>
             )}
@@ -891,77 +814,14 @@ export default function Admin() {
                 <input name="role" required defaultValue={editingItem?.role || ''} placeholder="Role" className="rounded-xl border border-slate-300 px-4 py-3" />
                 <textarea name="text" required defaultValue={editingItem?.text || ''} rows="4" placeholder="Testimonial" className="rounded-xl border border-slate-300 px-4 py-3" />
                 <input name="rating" type="number" min="1" max="5" required defaultValue={editingItem?.rating || 5} className="rounded-xl border border-slate-300 px-4 py-3" />
-                <div className="grid gap-3">
+                <div className="grid gap-4">
                   <div className="grid gap-2">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-semibold text-slate-800">Avatar image</p>
-                      {filePreviews.avatar_image ? (
-                        <button type="button" onClick={() => clearSelectedFile('avatar_image')} className="text-xs font-semibold text-rose-700 hover:text-rose-800">
-                          Remove selected
-                        </button>
-                      ) : editingItem?.avatar_image && !removeExistingImages.avatar_image ? (
-                        <button type="button" onClick={() => removeExistingImage('avatar_image')} className="text-xs font-semibold text-rose-700 hover:text-rose-800">
-                          Remove current
-                        </button>
-                      ) : removeExistingImages.avatar_image ? (
-                        <button type="button" onClick={() => setRemoveExistingImages((prev) => ({ ...prev, avatar_image: false }))} className="text-xs font-semibold text-slate-600 hover:text-slate-800">
-                          Undo
-                        </button>
-                      ) : null}
-                    </div>
-                    <div className="flex flex-wrap items-center gap-3">
-                      {(filePreviews.avatar_image || (editingItem?.avatar_image && !removeExistingImages.avatar_image)) && (
-                        <img
-                          src={assetUrl(filePreviews.avatar_image || editingItem.avatar_image)}
-                          alt="Avatar preview"
-                          className="h-14 w-14 rounded-2xl object-cover border border-slate-200"
-                        />
-                      )}
-                      <input
-                        key={fileInputKeys.avatar_image || 0}
-                        type="file"
-                        name="avatar_image"
-                        accept="image/*"
-                        onChange={(e) => setSelectedFile('avatar_image', e.target.files?.[0])}
-                        className="rounded-xl border border-slate-300 px-4 py-3"
-                      />
-                    </div>
+                    <p className="text-sm font-semibold text-slate-800">Avatar image</p>
+                    <MediaUploadInput name="avatar_image" defaultValue={editingItem?.avatar_image} />
                   </div>
-
                   <div className="grid gap-2">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-semibold text-slate-800">Banner image</p>
-                      {filePreviews.banner_image ? (
-                        <button type="button" onClick={() => clearSelectedFile('banner_image')} className="text-xs font-semibold text-rose-700 hover:text-rose-800">
-                          Remove selected
-                        </button>
-                      ) : editingItem?.banner_image && !removeExistingImages.banner_image ? (
-                        <button type="button" onClick={() => removeExistingImage('banner_image')} className="text-xs font-semibold text-rose-700 hover:text-rose-800">
-                          Remove current
-                        </button>
-                      ) : removeExistingImages.banner_image ? (
-                        <button type="button" onClick={() => setRemoveExistingImages((prev) => ({ ...prev, banner_image: false }))} className="text-xs font-semibold text-slate-600 hover:text-slate-800">
-                          Undo
-                        </button>
-                      ) : null}
-                    </div>
-                    <div className="flex flex-wrap items-center gap-3">
-                      {(filePreviews.banner_image || (editingItem?.banner_image && !removeExistingImages.banner_image)) && (
-                        <img
-                          src={assetUrl(filePreviews.banner_image || editingItem.banner_image)}
-                          alt="Banner preview"
-                          className="h-16 w-24 rounded-xl object-cover border border-slate-200"
-                        />
-                      )}
-                      <input
-                        key={fileInputKeys.banner_image || 0}
-                        type="file"
-                        name="banner_image"
-                        accept="image/*"
-                        onChange={(e) => setSelectedFile('banner_image', e.target.files?.[0])}
-                        className="rounded-xl border border-slate-300 px-4 py-3"
-                      />
-                    </div>
+                    <p className="text-sm font-semibold text-slate-800">Banner image</p>
+                    <MediaUploadInput name="banner_image" defaultValue={editingItem?.banner_image} />
                   </div>
                 </div>
               </>
@@ -986,36 +846,7 @@ export default function Admin() {
                 <div className="grid gap-2">
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-semibold text-slate-800">Hero image</p>
-                    {filePreviews.image ? (
-                      <button type="button" onClick={() => clearSelectedFile('image')} className="text-xs font-semibold text-rose-700 hover:text-rose-800">
-                        Remove selected
-                      </button>
-                    ) : editingItem?.image && !removeExistingImages.image ? (
-                      <button type="button" onClick={() => removeExistingImage('image')} className="text-xs font-semibold text-rose-700 hover:text-rose-800">
-                        Remove current
-                      </button>
-                    ) : removeExistingImages.image ? (
-                      <button type="button" onClick={() => setRemoveExistingImages((prev) => ({ ...prev, image: false }))} className="text-xs font-semibold text-slate-600 hover:text-slate-800">
-                        Undo
-                      </button>
-                    ) : null}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    {(filePreviews.image || (editingItem?.image && !removeExistingImages.image)) && (
-                      <img
-                        src={assetUrl(filePreviews.image || editingItem.image)}
-                        alt="Preview"
-                        className="h-16 w-24 rounded-xl object-cover border border-slate-200"
-                      />
-                    )}
-                    <input
-                      key={fileInputKeys.image || 0}
-                      type="file"
-                      name="image"
-                      accept="image/*"
-                      onChange={(e) => setSelectedFile('image', e.target.files?.[0])}
-                      className="rounded-xl border border-slate-300 px-4 py-3 text-sm"
-                    />
+                    <MediaUploadInput name="image" defaultValue={editingItem?.image} />
                   </div>
                 </div>
               </>
@@ -1029,7 +860,10 @@ export default function Admin() {
                 <textarea name="bio" required defaultValue={editingItem?.bio || ''} rows="4" placeholder="Bio" className="rounded-xl border border-slate-300 px-4 py-3" />
                 <div className="grid gap-4 md:grid-cols-3">
                   <input name="initials" defaultValue={editingItem?.initials || ''} placeholder="Initials" className="rounded-xl border border-slate-300 px-4 py-3" />
-                  <input name="avatar_color" defaultValue={editingItem?.avatar_color || '#0ea5e9'} placeholder="#0ea5e9" className="rounded-xl border border-slate-300 px-4 py-3" />
+                  <div className="flex flex-col gap-1.5">
+                    <p className="text-sm font-semibold text-slate-800">Avatar color</p>
+                    <ColorPickerInput name="avatar_color" defaultValue={editingItem?.avatar_color || ''} />
+                  </div>
                   <input name="display_order" type="number" required defaultValue={editingItem?.display_order || 1} className="rounded-xl border border-slate-300 px-4 py-3" />
                 </div>
               </>

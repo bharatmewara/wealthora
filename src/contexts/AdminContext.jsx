@@ -9,9 +9,27 @@ const http = axios.create({
 // Attach JWT to all requests
 http.interceptors.request.use((config) => {
   const token = localStorage.getItem('adminToken');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+  if (token) {
+    config.headers = config.headers || {};
+    config.headers['Authorization'] = `Bearer ${token}`;
+  }
   return config;
 });
+
+// Handle 401 globally
+http.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      localStorage.removeItem('adminToken');
+      // Only redirect if we're not already on the login page to avoid infinite loops
+      if (window.location.pathname !== '/admin/login') {
+        window.location.href = '/admin/login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 const initialState = {
   services: [],

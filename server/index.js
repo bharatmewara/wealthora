@@ -82,10 +82,11 @@ app.use('/api/faqs', faqRoutes);
 // ── V2 Enterprise Admin Routes ───────────────────────────────────────────────────
 const adminServiceRoutes = require('./routes/admin/services.routes');
 const adminEnquiryRoutes = require('./routes/admin/enquiries.routes');
-// ... more admin routes to come
+const adminUploadRoutes = require('./routes/admin/upload.routes');
 
 app.use('/api/admin/services', adminServiceRoutes);
 app.use('/api/admin/enquiries', adminEnquiryRoutes);
+app.use('/api/admin/upload', adminUploadRoutes);
 
 // ── Serve frontend build in production ───────────────────────────────────────
 const clientBuildPath = path.join(__dirname, '..', 'dist');

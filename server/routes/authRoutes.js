@@ -5,7 +5,7 @@ const { verifyToken } = require('../middleware/auth');
 const db = require('../db');
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'change-this-secret-in-production';
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
 // Admin credentials from environment only — never hardcoded defaults in production
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@wealthora.com';

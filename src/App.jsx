@@ -13,7 +13,13 @@ import BlogDetail from './pages/BlogDetail';
 import Testimonials from './pages/Testimonials';
 import Contact from './pages/Contact';
 import Login from './pages/Login';
-import Admin from './pages/Admin';
+
+// V2 Admin Imports
+import AdminLayout from './admin/AdminLayout';
+import Dashboard from './admin/pages/Dashboard';
+import EnquiryManager from './admin/pages/EnquiryManager';
+// We'll use the legacy Admin for the unported tabs for now as a fallback
+import LegacyAdmin from './pages/Admin';
 import NotFound from './pages/NotFound';
 import FAQ from './pages/FAQ';
 import PrivacyPolicy from './pages/PrivacyPolicy';
@@ -55,10 +61,16 @@ export default function App() {
               path="/admin"
               element={
                 <ProtectedRoute>
-                  <Admin />
+                  <AdminLayout />
                 </ProtectedRoute>
               }
-            />
+            >
+              <Route index element={<Navigate to="dashboard" replace />} />
+              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="enquiries" element={<EnquiryManager />} />
+              <Route path="services" element={<LegacyAdmin />} />
+              <Route path="*" element={<LegacyAdmin />} />
+            </Route>
           </Routes>
         </AdminProvider>
       </AuthProvider>
