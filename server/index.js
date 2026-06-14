@@ -18,7 +18,12 @@ app.use(helmet({
 // ── CORS ─────────────────────────────────────────────────────────────────────
 const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
-  : ['http://localhost:5173', 'http://localhost:4173'];
+  : [
+      'http://localhost:5173',
+      'http://localhost:4173',
+      'https://wealthoracompliancehub.in',
+      'https://www.wealthoracompliancehub.in'
+    ];
 
 const isLocalDevOrigin = (origin) =>
   process.env.NODE_ENV !== 'production' &&
