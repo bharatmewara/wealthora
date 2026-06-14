@@ -109,22 +109,25 @@ async function migrate() {
   }
 
   // ── Backfill service slugs ───────────────────────────────────────────────
-  const { rows } = await db.query(`SELECT id, title FROM services WHERE slug IS NULL OR slug = '' ORDER BY id`);
-  const used = new Set();
-  const existing = await db.query(`SELECT slug FROM services WHERE slug IS NOT NULL AND slug != ''`);
-  existing.rows.forEach(r => used.add(r.slug));
+  try {
+    const { rows } = await db.query(`SELECT id, title FROM services WHERE slug IS NULL OR slug = '' ORDER BY id`);
+    const used = new Set();
+    const existing = await db.query(`SELECT slug FROM services WHERE slug IS NOT NULL AND slug != ''`);
+    existing.rows.forEach(r => used.add(r.slug));
 
-  for (const row of rows) {
-    const base = row.title.toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-');
-    let slug = base;
-    let n = 1;
-    while (used.has(slug)) slug = `${base}-${n++}`;
-    used.add(slug);
-    await db.query(`UPDATE services SET slug = $1 WHERE id = $2`, [slug, row.id]);
+    for (const row of rows) {
+      const base = row.title.toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-');
+      let slug = base;
+      let n = 1;
+      while (used.has(slug)) slug = `${base}-${n++}`;
+      used.add(slug);
+      await db.query(`UPDATE services SET slug = $1 WHERE id = $2`, [slug, row.id]);
+    }
+
+    await db.query(`CREATE UNIQUE INDEX IF NOT EXISTS services_slug_uidx ON services (slug)`);
+  } catch (err) {
+    console.error('Slug backfill warning:', err.message);
   }
-
-  // Unique index for slugs — idempotent
-  await db.query(`CREATE UNIQUE INDEX IF NOT EXISTS services_slug_uidx ON services (slug)`);
 
   console.log('✓ DB migration complete');
 }

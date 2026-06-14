@@ -22,8 +22,8 @@ http.interceptors.response.use(
   (error) => {
     if (error.response && error.response.status === 401) {
       localStorage.removeItem('adminToken');
-      // Only redirect if we're not already on the login page to avoid infinite loops
-      if (window.location.pathname !== '/admin/login') {
+      // Only redirect if we are inside the admin panel and not already on the login page
+      if (window.location.pathname.startsWith('/admin') && window.location.pathname !== '/admin/login') {
         window.location.href = '/admin/login';
       }
     }
@@ -99,6 +99,9 @@ async function loadPublicData() {
 }
 
 async function loadAdminData() {
+  if (!localStorage.getItem('adminToken')) {
+    return { enquiries: [] };
+  }
   // Load enquiries (protected) separately
   const enquiries = await http.get('/api/enquiries');
   return { enquiries: enquiries.data || [] };
